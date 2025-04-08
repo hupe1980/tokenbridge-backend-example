@@ -5,6 +5,8 @@ const project = new awscdk.AwsCdkTypeScriptApp({
   name: 'cdk',
   projenrcTs: true,
   github: false,
+  license: 'MIT',
+  authorName: 'Frank Hübner',
 
   deps: ['@aws-cdk/aws-lambda-go-alpha'], /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
