@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.29.13
 	github.com/aws/aws-sdk-go-v2/service/kms v1.38.2
-	github.com/hupe1980/tokenbridge v0.0.6
+	github.com/hupe1980/tokenbridge v0.0.7
 )
 
 require (

@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -13,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hupe1980/tokenbridge"
 	"github.com/hupe1980/tokenbridge/signer"
 )
@@ -94,11 +98,31 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	}
 
 	// Create AuthServer and TokenBridge
-	authServer := tokenbridge.NewAuthServer(fullURL.String(), rsaSigner)
+	authServer := tokenbridge.NewAuthServer(fullURL.String(), rsaSigner, func(o *tokenbridge.AuthServerOptions) {
+		o.OnTokenCreate = func(ctx context.Context, idToken *oidc.IDToken) (jwt.MapClaims, error) {
+			claims := jwt.MapClaims{
+				"iss": idToken.Issuer,
+				"sub": idToken.Subject,
+				"aud": idToken.Audience,
+			}
+
+			// Add custom claims if provided
+			for key, value := range payload.CustomClaims {
+				if key != "" {
+					if slices.Contains([]string{"iss", "sub", "aud"}, key) {
+						logger.Warn("Attempt to overwrite reserved claim", "claim", key)
+						return nil, fmt.Errorf("custom claim '%s' cannot overwrite reserved claims", key)
+					}
+					claims[key] = value
+				}
+			}
+			return claims, nil
+		}
+	})
 	tb := tokenbridge.New(oidcVerifier, authServer)
 
 	// Exchange token
-	accessToken, err := tb.ExchangeToken(ctx, payload.IDToken, payload.CustomClaims)
+	accessToken, err := tb.ExchangeToken(ctx, payload.IDToken)
 	if err != nil {
 		logger.Error("Token exchange failed", "error", err)
 		return errorResponse(401, "token exchange failed"), nil
