@@ -100,16 +100,16 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	// Create AuthServer and TokenBridge
 	authServer := tokenbridge.NewAuthServer(fullURL.String(), rsaSigner, func(o *tokenbridge.AuthServerOptions) {
 		o.OnTokenCreate = func(ctx context.Context, idToken *oidc.IDToken) (jwt.MapClaims, error) {
-			claims := jwt.MapClaims{
-				"iss": idToken.Issuer,
-				"sub": idToken.Subject,
-				"aud": idToken.Audience,
+			claims, err := tokenbridge.DefaultOnTokenCreate(ctx, idToken)
+			if err != nil {
+				logger.Error("Failed to create token claims", "error", err)
+				return nil, err
 			}
 
 			// Add custom claims if provided
 			for key, value := range payload.CustomClaims {
 				if key != "" {
-					if slices.Contains([]string{"iss", "sub", "aud"}, key) {
+					if slices.Contains([]string{"iss", "sub", "aud", "exp", "iat"}, key) {
 						logger.Warn("Attempt to overwrite reserved claim", "claim", key)
 						return nil, fmt.Errorf("custom claim '%s' cannot overwrite reserved claims", key)
 					}
