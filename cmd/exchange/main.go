@@ -97,8 +97,8 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 		Host:   event.RequestContext.DomainName,
 	}
 
-	// Create AuthServer and TokenBridge
-	authServer := tokenbridge.NewAuthServer(fullURL.String(), rsaSigner, func(o *tokenbridge.AuthServerOptions) {
+	// Create Issuer
+	issuer := tokenbridge.NewTokenIssuerWithJWKS(fullURL.String(), rsaSigner, func(o *tokenbridge.TokenIssuerWithJWKSOptions) {
 		o.OnTokenCreate = func(ctx context.Context, idToken *oidc.IDToken) (jwt.MapClaims, error) {
 			claims, err := tokenbridge.DefaultOnTokenCreate(ctx, idToken)
 			if err != nil {
@@ -119,7 +119,10 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 			return claims, nil
 		}
 	})
-	tb := tokenbridge.New(oidcVerifier, authServer)
+
+	// Create TokenBridge
+	tb := tokenbridge.New(oidcVerifier)
+	tb.SetDefaultIssuer(issuer)
 
 	// Exchange token
 	accessToken, err := tb.ExchangeToken(ctx, payload.IDToken)

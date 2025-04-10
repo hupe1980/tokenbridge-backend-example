@@ -14,12 +14,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/hupe1980/tokenbridge"
+	"github.com/hupe1980/tokenbridge/cache"
 	"github.com/hupe1980/tokenbridge/signer"
 )
 
 var (
-	kmsClient *kms.Client
-	keyID     string
+	kmsClient      *kms.Client
+	keyID          string
+	publicKeyCache cache.Cache
 )
 
 func init() {
@@ -42,6 +44,8 @@ func init() {
 		os.Exit(1)
 	}
 	slog.Info("KMS_KEY_ID loaded successfully")
+
+	publicKeyCache = cache.NewMemoryCache()
 }
 
 func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -49,7 +53,9 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	logger.Info("Handling new request")
 
 	// Initialize RSA signer
-	rsaSigner := signer.NewKMS(kmsClient, keyID, types.SigningAlgorithmSpecRsassaPkcs1V15Sha256)
+	rsaSigner := signer.NewKMS(kmsClient, keyID, types.SigningAlgorithmSpecRsassaPkcs1V15Sha256, func(o *signer.KMSOptions) {
+		o.Cache = publicKeyCache
+	})
 
 	// Construct full URL
 	fullURL := &url.URL{
@@ -58,12 +64,12 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	}
 	logger.Info("Constructed full URL", "fullURL", fullURL.String())
 
-	// Create AuthServer
-	authServer := tokenbridge.NewAuthServer(fullURL.String(), rsaSigner)
+	// Create Issuer
+	issuer := tokenbridge.NewTokenIssuerWithJWKS(fullURL.String(), rsaSigner)
 
 	// Get JWKS
 	logger.Info("Fetching JWKS...")
-	jwks, err := authServer.GetJWKS(ctx)
+	jwks, err := issuer.GetJWKS(ctx)
 	if err != nil {
 		logger.Error("Failed to fetch JWKS", "error", err)
 		return errorResponse(500, "failed to get JWKS"), nil
