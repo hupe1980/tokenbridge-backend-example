@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kms v1.38.2
 	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/hupe1980/tokenbridge v0.0.14
+	github.com/hupe1980/tokenbridge v0.2.0
 )
 
 require (

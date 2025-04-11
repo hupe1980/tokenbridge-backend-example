@@ -38,8 +38,8 @@ github.com/golang-jwt/jwt/v5 v5.2.2 h1:Rl4B7itRWVtYIHFrSNd7vhTiz9UpLdi6gZhZ3wEeD
 github.com/golang-jwt/jwt/v5 v5.2.2/go.mod h1:pqrtFR0X4osieyHYxtmOUWsAWrfe1Q5UVIyoH402zdk=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/hupe1980/tokenbridge v0.0.14 h1:PBOxBrq5eT3URqRDwWuHBF3HO5osOt9Jc/IP/Wc6mU0=
-github.com/hupe1980/tokenbridge v0.0.14/go.mod h1:djl6n8wQXWt6S4wVYRVt0G5pIgEawLL+sd48f83rnbQ=
+github.com/hupe1980/tokenbridge v0.2.0 h1:JjEcI4YbvZ9k9JW/8H3wARYbQD3/eRvf8FyPU1kQ8to=
+github.com/hupe1980/tokenbridge v0.2.0/go.mod h1:djl6n8wQXWt6S4wVYRVt0G5pIgEawLL+sd48f83rnbQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=

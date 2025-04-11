@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
@@ -14,14 +13,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/hupe1980/tokenbridge"
-	"github.com/hupe1980/tokenbridge/cache"
-	"github.com/hupe1980/tokenbridge/signer"
+	"github.com/hupe1980/tokenbridge-backend/internal"
 )
 
 var (
 	kmsClient      *kms.Client
 	keyID          string
-	publicKeyCache cache.Cache
+	publicKeyCache tokenbridge.Cache
 )
 
 func init() {
@@ -45,7 +43,7 @@ func init() {
 	}
 	slog.Info("KMS_KEY_ID loaded successfully")
 
-	publicKeyCache = cache.NewMemoryCache()
+	publicKeyCache = tokenbridge.NewMemoryCache()
 }
 
 func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -53,7 +51,7 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	logger.Info("Handling new request")
 
 	// Initialize RSA signer
-	rsaSigner := signer.NewKMS(kmsClient, keyID, types.SigningAlgorithmSpecRsassaPkcs1V15Sha256, func(o *signer.KMSOptions) {
+	rsaSigner := tokenbridge.NewKMSSigner(kmsClient, keyID, types.SigningAlgorithmSpecRsassaPkcs1V15Sha256, func(o *tokenbridge.KMSSignerOptions) {
 		o.Cache = publicKeyCache
 	})
 
@@ -72,7 +70,7 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	jwks, err := issuer.GetJWKS(ctx)
 	if err != nil {
 		logger.Error("Failed to fetch JWKS", "error", err)
-		return errorResponse(500, "failed to get JWKS"), nil
+		return internal.ErrorResponse(500, "failed to get JWKS"), nil
 	}
 	logger.Info("Successfully fetched JWKS")
 
@@ -86,17 +84,6 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 			"Content-Type": "application/json",
 		},
 	}, nil
-}
-
-func errorResponse(status int, msg string) events.APIGatewayV2HTTPResponse {
-	body := fmt.Sprintf(`{"error":"%s"}`, msg)
-	return events.APIGatewayV2HTTPResponse{
-		StatusCode: status,
-		Body:       body,
-		Headers: map[string]string{
-			"Content-Type": "application/json",
-		},
-	}
 }
 
 func main() {
