@@ -21,7 +21,7 @@ export class MyStack extends Stack {
 
     // Define Go Lambda functions
     const exchangeLambda = new lambda_go.GoFunction(this, 'ExchangeLambda', {
-      entry: path.join(__dirname, '..', '..', '..', 'cmd', 'exchange'),
+      entry: path.join(__dirname, '..', '..', '..', 'app', 'cmd', 'exchange'),
       environment: {
         KMS_KEY_ID: rsaKey.keyId, // Pass the KMS key ID as an environment variable
       },
@@ -29,7 +29,7 @@ export class MyStack extends Stack {
     });
 
     const jwksLambda = new lambda_go.GoFunction(this, 'JwksLambda', {
-      entry: path.join(__dirname, '..', '..', '..', 'cmd', 'jwks'),
+      entry: path.join(__dirname, '..', '..', '..', 'app', 'cmd', 'jwks'),
       environment: {
         KMS_KEY_ID: rsaKey.keyId, // Pass the KMS key ID as an environment variable
       },

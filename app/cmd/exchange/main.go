@@ -99,8 +99,8 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 
 	// Create Issuer
 	issuer := tokenbridge.NewTokenIssuerWithJWKS(fullURL.String(), rsaSigner, func(o *tokenbridge.TokenIssuerWithJWKSOptions) {
-		o.OnTokenCreate = func(ctx context.Context, idToken *oidc.IDToken) (jwt.MapClaims, error) {
-			claims, err := tokenbridge.DefaultOnTokenCreate(ctx, idToken)
+		o.OnTokenCreate = func(ctx context.Context, issuer string, idToken *oidc.IDToken) (jwt.MapClaims, error) {
+			claims, err := tokenbridge.DefaultOnTokenCreate(ctx, issuer, idToken)
 			if err != nil {
 				logger.Error("Failed to create token claims", "error", err)
 				return nil, err
