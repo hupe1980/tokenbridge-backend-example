@@ -138,7 +138,8 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 		StatusCode: 200,
 		Body:       string(respBody),
 		Headers: map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type":  "application/json",
+			"Cache-Control": "no-store",
 		},
 	}, nil
 }
