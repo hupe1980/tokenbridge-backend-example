@@ -47,6 +47,14 @@ This repository contains the backend implementation for the TokenBridge service.
   }
   ```
 
+## Related Projects
+
+Looking to integrate or extend TokenBridge? Check out these related projects:
+
+- [**TokenBridge**](https://github.com/hupe1980/tokenbridge): The main project for TokenBridge, providing core functionality and documentation.
+- [**TokenBridge GitHub Action**](https://github.com/hupe1980/tokenbridge-action): Automate your workflows with TokenBridge using GitHub Actions.
+
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
