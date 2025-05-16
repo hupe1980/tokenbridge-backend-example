@@ -1,18 +1,18 @@
 import * as path from 'node:path';
+import * as lambda_go from '@aws-cdk/aws-lambda-go-alpha';
 import { App, RemovalPolicy, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
 import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import * as lambda_go from '@aws-cdk/aws-lambda-go-alpha';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { Construct } from 'constructs';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps = {}) {
     super(scope, id, props);
 
     // Create an asymmetric RSA256 KMS key
-    const rsaKey = new kms.Key(this, 'RSA256Key', {
+    const rsaKey = new kms.Key(this, 'RSA256-Key', {
       keySpec: kms.KeySpec.RSA_2048,
       keyUsage: kms.KeyUsage.SIGN_VERIFY,
       description: 'Asymmetric RSA256 key for signing access tokens',

@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -49,7 +49,9 @@ func init() {
 }
 
 type AccessTokenResponse struct {
-	AccessToken string `json:"access_token"`
+	AccessToken     string `json:"access_token"`
+	IssuedTokenType string `json:"issued_token_type"`
+	TokenType       string `json:"token_type"`
 }
 
 func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -63,20 +65,40 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 		return internal.ErrorResponse(500, "failed to parse issuer URL"), nil
 	}
 
-	// Decode JSON payload
-	var payload struct {
-		IDToken      string         `json:"id_token"`
-		CustomClaims map[string]any `json:"custom_claims"`
-	}
-	if err := json.NewDecoder(strings.NewReader(event.Body)).Decode(&payload); err != nil {
-		logger.Error("Failed to decode JSON payload", "error", err)
-		return internal.ErrorResponse(400, "failed to decode JSON payload"), nil
+	body := event.Body
+	if event.IsBase64Encoded {
+		decoded, err := base64.StdEncoding.DecodeString(event.Body)
+		if err != nil {
+			logger.Error("Failed to decode base64 body", "error", err)
+			return internal.ErrorResponse(400, "failed to decode base64 body"), nil
+		}
+		body = string(decoded)
 	}
 
-	// Validate ID token
-	if payload.IDToken == "" {
-		logger.Warn("ID token is missing in the payload")
-		return internal.ErrorResponse(400, "ID token is missing"), nil
+	// Decode x-www-form-urlencoded payload
+	form, err := url.ParseQuery(body)
+	if err != nil {
+		logger.Error("Failed to parse form payload", "error", err)
+		return internal.ErrorResponse(400, "failed to parse form payload"), nil
+	}
+
+	subjectToken := form.Get("subject_token")
+	customAttributesStr := form.Get("custom_attributes")
+
+	var customAttributes map[string]any
+	if customAttributesStr != "" {
+		if err := json.Unmarshal([]byte(customAttributesStr), &customAttributes); err != nil {
+			logger.Error("Failed to decode custom_attributes JSON", "error", err)
+			return internal.ErrorResponse(400, "failed to decode custom_attributes JSON"), nil
+		}
+	} else {
+		customAttributes = make(map[string]any)
+	}
+
+	// Validate subject_token
+	if subjectToken == "" {
+		logger.Warn("subject_token is missing in the payload")
+		return internal.ErrorResponse(400, "subject_token is missing"), nil
 	}
 
 	// Create OIDC verifier
@@ -106,12 +128,12 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 				return nil, err
 			}
 
-			// Add custom claims if provided
-			for key, value := range payload.CustomClaims {
+			// Add custom attributes if provided
+			for key, value := range customAttributes {
 				if key != "" {
 					if slices.Contains([]string{"iss", "sub", "aud", "exp", "iat"}, key) {
 						logger.Warn("Attempt to overwrite reserved claim", "claim", key)
-						return nil, fmt.Errorf("custom claim '%s' cannot overwrite reserved claims", key)
+						return nil, fmt.Errorf("custom attribute '%s' cannot overwrite reserved claims", key)
 					}
 					claims[key] = value
 				}
@@ -125,14 +147,18 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	tb.SetDefaultIssuer(issuer)
 
 	// Exchange token
-	accessToken, err := tb.ExchangeToken(ctx, payload.IDToken)
+	accessToken, err := tb.ExchangeToken(ctx, subjectToken)
 	if err != nil {
 		logger.Error("Token exchange failed", "error", err)
 		return internal.ErrorResponse(401, "token exchange failed"), nil
 	}
 
 	logger.Info("Token exchange successful")
-	respBody, _ := json.Marshal(AccessTokenResponse{AccessToken: accessToken})
+	respBody, _ := json.Marshal(AccessTokenResponse{
+		AccessToken:     accessToken,
+		IssuedTokenType: "urn:ietf:params:oauth:token-type:access_token",
+		TokenType:       "Bearer",
+	})
 
 	return events.APIGatewayV2HTTPResponse{
 		StatusCode: 200,
