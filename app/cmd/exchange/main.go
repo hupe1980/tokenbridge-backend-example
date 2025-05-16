@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
-	"slices"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -48,12 +46,6 @@ func init() {
 	slog.Info("KMS_KEY_ID loaded successfully")
 }
 
-type AccessTokenResponse struct {
-	AccessToken     string `json:"access_token"`
-	IssuedTokenType string `json:"issued_token_type"`
-	TokenType       string `json:"token_type"`
-}
-
 func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	logger := slog.With("request_id", event.RequestContext.RequestID)
 	logger.Info("Handling new request")
@@ -83,17 +75,18 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	}
 
 	subjectToken := form.Get("subject_token")
-	customAttributesStr := form.Get("custom_attributes")
 
-	var customAttributes map[string]any
-	if customAttributesStr != "" {
-		if err := json.Unmarshal([]byte(customAttributesStr), &customAttributes); err != nil {
-			logger.Error("Failed to decode custom_attributes JSON", "error", err)
-			return internal.ErrorResponse(400, "failed to decode custom_attributes JSON"), nil
-		}
-	} else {
-		customAttributes = make(map[string]any)
-	}
+	// customAttributesStr := form.Get("custom_attributes")
+
+	// var customAttributes map[string]any
+	// if customAttributesStr != "" {
+	// 	if err := json.Unmarshal([]byte(customAttributesStr), &customAttributes); err != nil {
+	// 		logger.Error("Failed to decode custom_attributes JSON", "error", err)
+	// 		return internal.ErrorResponse(400, "failed to decode custom_attributes JSON"), nil
+	// 	}
+	// } else {
+	// 	customAttributes = make(map[string]any)
+	// }
 
 	// Validate subject_token
 	if subjectToken == "" {
@@ -128,37 +121,22 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 				return nil, err
 			}
 
-			// Add custom attributes if provided
-			for key, value := range customAttributes {
-				if key != "" {
-					if slices.Contains([]string{"iss", "sub", "aud", "exp", "iat"}, key) {
-						logger.Warn("Attempt to overwrite reserved claim", "claim", key)
-						return nil, fmt.Errorf("custom attribute '%s' cannot overwrite reserved claims", key)
-					}
-					claims[key] = value
-				}
-			}
 			return claims, nil
 		}
 	})
 
 	// Create TokenBridge
-	tb := tokenbridge.New(oidcVerifier)
-	tb.SetDefaultIssuer(issuer)
+	tb := tokenbridge.New(oidcVerifier, issuer)
 
 	// Exchange token
-	accessToken, err := tb.ExchangeToken(ctx, subjectToken)
+	result, err := tb.ExchangeToken(ctx, subjectToken)
 	if err != nil {
 		logger.Error("Token exchange failed", "error", err)
 		return internal.ErrorResponse(401, "token exchange failed"), nil
 	}
 
 	logger.Info("Token exchange successful")
-	respBody, _ := json.Marshal(AccessTokenResponse{
-		AccessToken:     accessToken,
-		IssuedTokenType: "urn:ietf:params:oauth:token-type:access_token",
-		TokenType:       "Bearer",
-	})
+	respBody, _ := json.Marshal(result)
 
 	return events.APIGatewayV2HTTPResponse{
 		StatusCode: 200,
