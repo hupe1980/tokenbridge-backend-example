@@ -121,6 +121,9 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 				return nil, err
 			}
 
+			// Add the request ID as the JWT ID (jti) claim
+			claims["jti"] = event.RequestContext.RequestID
+
 			return claims, nil
 		}
 	})

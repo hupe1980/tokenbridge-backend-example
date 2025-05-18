@@ -4,6 +4,7 @@ import { App, RemovalPolicy, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as kms from 'aws-cdk-lib/aws-kms';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 
@@ -20,12 +21,22 @@ export class MyStack extends Stack {
     });
 
     // Define Go Lambda functions
-    const exchangeLambda = new lambda_go.GoFunction(this, 'ExchangeLambda', {
-      entry: path.join(__dirname, '..', '..', '..', 'app', 'cmd', 'exchange'),
+    const githubExchangeLambda = new lambda_go.GoFunction(this, 'GithubExchangeLambda', {
+      entry: path.join(__dirname, '..', '..', '..', 'app', 'cmd', 'github'),
       environment: {
         KMS_KEY_ID: rsaKey.keyId, // Pass the KMS key ID as an environment variable
       },
       logRetention: RetentionDays.ONE_WEEK,
+      architecture: lambda.Architecture.ARM_64,
+    });
+
+    const k8sExchangeLambda = new lambda_go.GoFunction(this, 'K8sExchangeLambda', {
+      entry: path.join(__dirname, '..', '..', '..', 'app', 'cmd', 'k8s'),
+      environment: {
+        KMS_KEY_ID: rsaKey.keyId, // Pass the KMS key ID as an environment variable
+      },
+      logRetention: RetentionDays.ONE_WEEK,
+      architecture: lambda.Architecture.ARM_64,
     });
 
     const jwksLambda = new lambda_go.GoFunction(this, 'JwksLambda', {
@@ -34,10 +45,12 @@ export class MyStack extends Stack {
         KMS_KEY_ID: rsaKey.keyId, // Pass the KMS key ID as an environment variable
       },
       logRetention: RetentionDays.ONE_WEEK,
+      architecture: lambda.Architecture.ARM_64,
     });
 
     // Grant permissions to the Lambda functions to use the KMS key
-    rsaKey.grant(exchangeLambda, 'kms:Sign');
+    rsaKey.grant(githubExchangeLambda, 'kms:Sign');
+    rsaKey.grant(k8sExchangeLambda, 'kms:Sign');
     rsaKey.grant(jwksLambda, 'kms:GetPublicKey');
 
     // Create HTTP API (API Gateway v2)
@@ -48,9 +61,15 @@ export class MyStack extends Stack {
 
     // Add /exchange POST route
     httpApi.addRoutes({
-      path: '/exchange',
+      path: '/github/exchange',
       methods: [apigatewayv2.HttpMethod.POST],
-      integration: new integrations.HttpLambdaIntegration('ExchangeIntegration', exchangeLambda),
+      integration: new integrations.HttpLambdaIntegration('GithubExchangeIntegration', githubExchangeLambda),
+    });
+
+    httpApi.addRoutes({
+      path: '/k8s/exchange',
+      methods: [apigatewayv2.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('K8sExchangeIntegration', k8sExchangeLambda),
     });
 
     // Add /.well-known/jwks.json GET route
