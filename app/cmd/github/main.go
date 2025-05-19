@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/url"
@@ -50,33 +49,16 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	logger := slog.With("request_id", event.RequestContext.RequestID)
 	logger.Info("Handling new request")
 
-	// Parse issuer URL
-	issuerURL, err := url.Parse("https://token.actions.githubusercontent.com")
-	if err != nil {
-		logger.Error("Failed to parse issuer URL", "error", err)
-		return internal.ErrorResponse(500, "failed to parse issuer URL"), nil
-	}
-
-	body := event.Body
-	if event.IsBase64Encoded {
-		decoded, err := base64.StdEncoding.DecodeString(event.Body)
-		if err != nil {
-			logger.Error("Failed to decode base64 body", "error", err)
-			return internal.ErrorResponse(400, "failed to decode base64 body"), nil
-		}
-		body = string(decoded)
-	}
-
 	// Decode x-www-form-urlencoded payload
-	form, err := url.ParseQuery(body)
+	values, err := internal.ParseBody(event)
 	if err != nil {
 		logger.Error("Failed to parse form payload", "error", err)
 		return internal.ErrorResponse(400, "failed to parse form payload"), nil
 	}
 
-	subjectToken := form.Get("subject_token")
+	subjectToken := values.Get("subject_token")
 
-	// customAttributesStr := form.Get("custom_attributes")
+	// customAttributesStr := values.Get("custom_attributes")
 
 	// var customAttributes map[string]any
 	// if customAttributesStr != "" {
@@ -95,6 +77,13 @@ func handleRequest(ctx context.Context, event events.APIGatewayV2HTTPRequest) (e
 	}
 
 	// Create OIDC verifier
+	// Parse issuer URL
+	issuerURL, err := url.Parse("https://token.actions.githubusercontent.com")
+	if err != nil {
+		logger.Error("Failed to parse issuer URL", "error", err)
+		return internal.ErrorResponse(500, "failed to parse issuer URL"), nil
+	}
+
 	oidcVerifier, err := tokenbridge.NewOIDCVerifier(ctx, issuerURL, []string{"tokenbridge"}, func(o *tokenbridge.OIDCVerifierOptions) {
 		o.Thumbprints = []string{"D89E3BD43D5D909B47A18977AA9D5CE36CEE184C"}
 	})
